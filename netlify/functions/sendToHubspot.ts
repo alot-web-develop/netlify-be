@@ -97,7 +97,7 @@ export const handler: Handler = async (
   event: HandlerEvent
 ): Promise<HandlerResponse> => {
   const corsHeaders = {
-    "Access-Control-Allow-Origin": "*", // o specifica il tuo dominio
+    "Access-Control-Allow-Origin": "http://localhost:3000",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
   };
