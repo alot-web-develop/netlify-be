@@ -113,24 +113,7 @@ exports.handler = async (event) => {
 
         const ticket = await ticketRes.json();
 
-        // 3. Associa ticket e contatto
-        const assocRes = await fetch(
-          `${HUBSPOT_API_BASE}/crm/v3/objects/tickets/${ticket.id}/associations/contact/${contact.id}/contact_to_ticket`,
-          {
-            method: "PUT",
-            headers: {
-              Authorization: `Bearer ${HUBSPOT_TOKEN}`,
-              "Content-Type": "application/json",
-            },
-          }
-        );
-
-        if (!assocRes.ok) {
-          const error = await assocRes.text();
-          throw new Error(`Errore associazione ticket-contatto: ${error}`);
-        }
-
-        // 4. Se c'è un file, caricalo su HubSpot
+        // 3. Se c'è un file, caricalo su HubSpot
         let fileInfo;
 
         if (fileBuffer) {
