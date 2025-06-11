@@ -1,7 +1,7 @@
 import { Handler, HandlerEvent, HandlerResponse } from "@netlify/functions";
 import { google } from "googleapis";
 import nodemailer from "nodemailer";
-const Busboy = require("busboy");
+import Busboy from "busboy";
 import { Readable } from "stream";
 
 function bufferToStream(buffer: Buffer) {
@@ -128,7 +128,7 @@ export const handler: Handler = async (
   }
 
   return new Promise((resolve) => {
-    const busboy = new Busboy({ headers: event.headers });
+    const busboy = Busboy({ headers: event.headers });
     const fields: Record<string, string> = {};
     const attachments: any[] = [];
     const driveLinks: string[] = [];

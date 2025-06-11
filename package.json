@@ -11,6 +11,7 @@
   "license": "ISC",
   "devDependencies": {
     "@netlify/functions": "^4.1.4",
+    "@types/busboy": "^1.5.4",
     "typescript": "^5.8.3"
   },
   "dependencies": {
