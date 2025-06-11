@@ -20,33 +20,7 @@ const drive = google.drive({ version: "v3", auth });
 
 const FOLDER_ID = process.env.DRIVE_FOLDER_ID ?? "";
 
-async function uploadFileToDrive(
-  buffer: Buffer,
-  filename: string,
-  mimeType: string
-) {
-  const stream = bufferToStream(buffer);
-
-  const res = await drive.files.create({
-    requestBody: { name: filename, mimeType, parents: [FOLDER_ID] },
-    media: { mimeType, body: stream },
-    fields: "id",
-  });
-
-  const fileId = res.data.id;
-  if (!fileId) throw new Error("File ID is missing after upload");
-  await drive.permissions.create({
-    fileId,
-    requestBody: { role: "reader", type: "anyone" },
-  });
-
-  const meta = await drive.files.get({
-    fileId,
-    fields: "webViewLink",
-  });
-
-  return { link: meta.data.webViewLink, fileId };
-}
+// transporter nodemailer
 
 const transporter = nodemailer.createTransport({
   host: process.env.GMAIL_HOST,
@@ -57,7 +31,43 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// ✅ Funzione per inviare dati a HubSpot
+// Funzione per caricare i file sul drive
+
+async function uploadFileToDrive(
+  buffer: Buffer,
+  filename: string,
+  mimeType: string
+) {
+  try {
+    const stream = bufferToStream(buffer);
+
+    const res = await drive.files.create({
+      requestBody: { name: filename, mimeType, parents: [FOLDER_ID] },
+      media: { mimeType, body: stream },
+      fields: "id",
+    });
+
+    const fileId = res.data.id;
+    if (!fileId) throw new Error("File ID is missing after upload");
+
+    await drive.permissions.create({
+      fileId,
+      requestBody: { role: "reader", type: "anyone" },
+    });
+
+    const meta = await drive.files.get({
+      fileId,
+      fields: "webViewLink",
+    });
+
+    return { link: meta.data.webViewLink, fileId };
+  } catch (error) {
+    console.error("uploadFileToDrive error:", error);
+    throw error; // rilancia per farlo gestire in chi chiama la funzione
+  }
+}
+
+// Funzione per inviare dati a HubSpot
 async function sendToHubspot(fields: Record<string, string>) {
   const portalId = process.env.HUBSPOT_PORTAL_ID;
   const formGuid = process.env.HUBSPOT_FORM_GUID;
@@ -96,10 +106,10 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "http://localhost:3000",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
-  "Access-Control-Allow-Credentials": "true", // Aggiungi questo
+  "Access-Control-Allow-Credentials": "true",
 };
 
-// ✅ HANDLER AGGIORNATO CON HEADER CORS SU TUTTE LE RISPOSTE
+//  HANDLER
 export const handler: Handler = async (
   event: HandlerEvent
 ): Promise<HandlerResponse> => {
@@ -166,16 +176,14 @@ export const handler: Handler = async (
         const { name, email, message, phone, practice } = fields;
 
         const textBody = `
-Nuovo messaggio da ${name}
-Email: ${email}
-Telefono: ${phone || "non fornito"}
-Studio: ${practice || "non fornito"}
-
-Messaggio:
-${message}
-
-File caricati su Google Drive:
-${driveLinks.join("\n")}
+          Nuovo messaggio da ${name}
+          Email: ${email}
+          Telefono: ${phone || "non fornito"}
+          Studio: ${practice || "non fornito"}
+          Messaggio:
+          ${message}
+          File caricati su Google Drive:
+          ${driveLinks.join("\n")}
         `;
 
         await transporter.sendMail({
