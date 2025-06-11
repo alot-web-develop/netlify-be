@@ -12,7 +12,7 @@ function bufferToStream(buffer: Buffer) {
 }
 
 const auth = new google.auth.GoogleAuth({
-  keyFile: process.env.SECURITY_JSON,
+  credentials: JSON.parse(process.env.SECURITY_JSON || "{}"),
   scopes: ["https://www.googleapis.com/auth/drive.file"],
 });
 
