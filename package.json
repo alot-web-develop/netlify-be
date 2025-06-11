@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -13,6 +12,9 @@
   "devDependencies": {
     "@netlify/functions": "^4.1.4",
     "@types/busboy": "^1.5.4",
+    "@types/node": "^24.0.0",
+    "@types/node-fetch": "^2.6.12",
+    "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
   },
   "dependencies": {

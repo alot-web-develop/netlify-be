@@ -1,10 +1,10 @@
-import { Handler, HandlerEvent, HandlerResponse } from "@netlify/functions";
-import fetch from "node-fetch";
-import Busboy from "busboy";
-import FormData from "form-data";
+const { Handler } = require("@netlify/functions");
+const fetch = require("node-fetch");
+const Busboy = require("busboy");
+const FormData = require("form-data");
 
 const HUBSPOT_API_BASE = "https://api.hubapi.com";
-const HUBSPOT_TOKEN = process.env.HUBSPOT_APP_KEY!;
+const HUBSPOT_TOKEN = process.env.HUBSPOT_APP_KEY;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "http://localhost:3000",
@@ -13,9 +13,7 @@ const corsHeaders = {
   "Access-Control-Allow-Credentials": "true",
 };
 
-export const handler: Handler = async (
-  event: HandlerEvent
-): Promise<HandlerResponse> => {
+exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") {
     return {
       statusCode: 200,
@@ -34,8 +32,8 @@ export const handler: Handler = async (
 
   return new Promise((resolve, reject) => {
     const busboy = Busboy({ headers: event.headers });
-    const fields: Record<string, string> = {};
-    let fileBuffer: Buffer | null = null;
+    const fields = {};
+    let fileBuffer = null;
     let fileName = "";
     let mimeType = "";
 
@@ -44,7 +42,7 @@ export const handler: Handler = async (
     });
 
     busboy.on("file", (_fieldname, file, filename, _encoding, mimetype) => {
-      const chunks: Buffer[] = [];
+      const chunks = [];
       fileName = filename;
       mimeType = mimetype;
 
@@ -181,7 +179,7 @@ export const handler: Handler = async (
             file: fileInfo,
           }),
         });
-      } catch (err: any) {
+      } catch (err) {
         resolve({
           statusCode: 500,
           headers: corsHeaders,
