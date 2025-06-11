@@ -92,16 +92,17 @@ async function sendToHubspot(fields: Record<string, string>) {
   return await res.json();
 }
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "http://localhost:3000",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Credentials": "true", // Aggiungi questo
+};
+
 // ✅ HANDLER AGGIORNATO CON HEADER CORS SU TUTTE LE RISPOSTE
 export const handler: Handler = async (
   event: HandlerEvent
 ): Promise<HandlerResponse> => {
-  const corsHeaders = {
-    "Access-Control-Allow-Origin": "http://localhost:3000",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
-  };
-
   if (event.httpMethod === "OPTIONS") {
     return {
       statusCode: 200,
@@ -151,6 +152,11 @@ export const handler: Handler = async (
           });
         } catch (err) {
           console.error("Errore upload:", err);
+          resolve({
+            statusCode: 500,
+            headers: corsHeaders,
+            body: JSON.stringify({ error: "Errore analisi form" }),
+          });
         }
       });
     });
