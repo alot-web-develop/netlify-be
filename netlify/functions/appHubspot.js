@@ -14,7 +14,10 @@ const corsHeaders = {
 };
 
 exports.handler = async (event) => {
+  console.log("Evento ricevuto:", event.httpMethod, event.headers);
+
   if (event.httpMethod === "OPTIONS") {
+    console.log("Risposta a richiesta OPTIONS (CORS preflight)");
     return {
       statusCode: 200,
       headers: corsHeaders,
@@ -23,14 +26,16 @@ exports.handler = async (event) => {
   }
 
   if (event.httpMethod !== "POST") {
+    console.warn("Metodo non consentito:", event.httpMethod);
     return {
       statusCode: 405,
       headers: corsHeaders,
-      body: "Method not allowed",
+      body: JSON.stringify({ error: "Method not allowed" }),
     };
   }
 
   return new Promise((resolve, reject) => {
+    console.log("Inizio parsing con Busboy");
     const busboy = Busboy({ headers: event.headers });
     const fields = {};
     let fileBuffer = null;
@@ -38,30 +43,40 @@ exports.handler = async (event) => {
     let mimeType = "";
 
     busboy.on("field", (name, value) => {
+      console.log(`Campo ricevuto: ${name} = ${value}`);
       fields[name] = value;
     });
 
     busboy.on("file", (_fieldname, file, filename, _encoding, mimetype) => {
+      console.log(`File ricevuto: ${filename} (${mimetype})`);
       const chunks = [];
       fileName = filename;
       mimeType = mimetype;
 
-      file.on("data", (data) => chunks.push(data));
+      file.on("data", (data) => {
+        console.log(`Ricevuti chunk file: ${data.length} byte`);
+        chunks.push(data);
+      });
+
       file.on("end", () => {
         fileBuffer = Buffer.concat(chunks);
+        console.log(
+          `File completato. Dimensione totale: ${fileBuffer.length} byte`
+        );
       });
     });
 
     busboy.on("finish", async () => {
+      console.log("Parsing completato. Campi:", fields);
       try {
-        // 1. Crea il contatto
+        console.log("1. Creazione contatto su HubSpot");
         const contactPayload = {
           properties: {
             email: fields.email,
             firstname: fields.name,
             phone: fields.phone || "",
             company: fields.practice || "",
-            message: fields.message || "", // Se hai la property custom "message"
+            message: fields.message || "",
           },
         };
 
@@ -79,18 +94,20 @@ exports.handler = async (event) => {
 
         if (!contactRes.ok) {
           const error = await contactRes.text();
+          console.error("Errore creazione contatto:", error);
           throw new Error(`Errore creazione contatto: ${error}`);
         }
 
         const contact = await contactRes.json();
+        console.log("Contatto creato con ID:", contact.id);
 
-        // 2. Crea il ticket
+        console.log("2. Creazione ticket su HubSpot");
         const ticketPayload = {
           properties: {
-            subject: fields.name, // usa il nome come subject
-            content: fields.message || "", // il messaggio
-            hs_pipeline: "0", // default pipeline (modifica se usi un’altra)
-            hs_pipeline_stage: "1", // default stage (modifica se serve)
+            subject: fields.name,
+            content: fields.message || "",
+            hs_pipeline: "0",
+            hs_pipeline_stage: "1",
           },
         };
 
@@ -108,15 +125,17 @@ exports.handler = async (event) => {
 
         if (!ticketRes.ok) {
           const error = await ticketRes.text();
+          console.error("Errore creazione ticket:", error);
           throw new Error(`Errore creazione ticket: ${error}`);
         }
 
         const ticket = await ticketRes.json();
+        console.log("Ticket creato con ID:", ticket.id);
 
-        // 3. Se c'è un file, caricalo su HubSpot
         let fileInfo;
 
         if (fileBuffer) {
+          console.log("3. Upload file su HubSpot");
           const form = new FormData();
           form.append("file", fileBuffer, {
             filename: fileName,
@@ -141,6 +160,7 @@ exports.handler = async (event) => {
 
           if (!fileRes.ok) {
             const fileErr = await fileRes.text();
+            console.error("Errore upload file:", fileErr);
             throw new Error(`Errore upload file: ${fileErr}`);
           }
 
@@ -150,6 +170,9 @@ exports.handler = async (event) => {
             fileUrl: fileData.url,
             fileName: fileData.name,
           };
+          console.log("File caricato con successo:", fileInfo);
+        } else {
+          console.log("Nessun file da caricare");
         }
 
         resolve({
@@ -163,6 +186,7 @@ exports.handler = async (event) => {
           }),
         });
       } catch (err) {
+        console.error("Errore nella funzione:", err);
         resolve({
           statusCode: 500,
           headers: corsHeaders,
@@ -171,6 +195,15 @@ exports.handler = async (event) => {
       }
     });
 
-    busboy.end(Buffer.from(event.body || "", "base64"));
+    try {
+      busboy.end(Buffer.from(event.body || "", "base64"));
+    } catch (err) {
+      console.error("Errore durante busboy.end():", err);
+      resolve({
+        statusCode: 500,
+        headers: corsHeaders,
+        body: JSON.stringify({ error: err.message }),
+      });
+    }
   });
 };
