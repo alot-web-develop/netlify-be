@@ -102,8 +102,27 @@ export const handler: Handler = async (
     };
   }
 
+  if (event.httpMethod === "OPTIONS") {
+    // Preflight response per CORS
+    return {
+      statusCode: 200,
+      headers: {
+        "Access-Control-Allow-Origin": "*", // o specifica il tuo dominio
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+      },
+      body: "",
+    };
+  }
+
   if (event.httpMethod !== "POST") {
-    return { statusCode: 405, body: "Method Not Allowed" };
+    return {
+      statusCode: 405,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+      },
+      body: "Method Not Allowed",
+    };
   }
 
   return new Promise((resolve, reject) => {
