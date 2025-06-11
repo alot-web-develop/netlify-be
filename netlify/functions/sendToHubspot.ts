@@ -1,7 +1,7 @@
 import { Handler, HandlerEvent, HandlerResponse } from "@netlify/functions";
 import { google } from "googleapis";
 import nodemailer from "nodemailer";
-import Busboy from "busboy";
+import * as Busboy from "busboy";
 import { Readable } from "stream";
 
 function bufferToStream(buffer: Buffer) {
