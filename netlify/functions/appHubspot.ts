@@ -60,9 +60,10 @@ export const handler: Handler = async (
         const contactPayload = {
           properties: {
             email: fields.email,
-            subject: fields.name,
+            firstname: fields.name,
             phone: fields.phone || "",
             company: fields.practice || "",
+            message: fields.message || "", // Se hai la property custom "message"
           },
         };
 
@@ -85,7 +86,53 @@ export const handler: Handler = async (
 
         const contact = await contactRes.json();
 
-        // 2. Se c'è un file, caricalo su HubSpot
+        // 2. Crea il ticket
+        const ticketPayload = {
+          properties: {
+            subject: fields.name, // usa il nome come subject
+            content: fields.message || "", // il messaggio
+            hs_pipeline: "0", // default pipeline (modifica se usi un’altra)
+            hs_pipeline_stage: "1", // default stage (modifica se serve)
+          },
+        };
+
+        const ticketRes = await fetch(
+          `${HUBSPOT_API_BASE}/crm/v3/objects/tickets`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${HUBSPOT_TOKEN}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(ticketPayload),
+          }
+        );
+
+        if (!ticketRes.ok) {
+          const error = await ticketRes.text();
+          throw new Error(`Errore creazione ticket: ${error}`);
+        }
+
+        const ticket = await ticketRes.json();
+
+        // 3. Associa ticket e contatto
+        const assocRes = await fetch(
+          `${HUBSPOT_API_BASE}/crm/v3/objects/tickets/${ticket.id}/associations/contact/${contact.id}/contact_to_ticket`,
+          {
+            method: "PUT",
+            headers: {
+              Authorization: `Bearer ${HUBSPOT_TOKEN}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (!assocRes.ok) {
+          const error = await assocRes.text();
+          throw new Error(`Errore associazione ticket-contatto: ${error}`);
+        }
+
+        // 4. Se c'è un file, caricalo su HubSpot
         let fileInfo;
 
         if (fileBuffer) {
@@ -128,8 +175,9 @@ export const handler: Handler = async (
           statusCode: 200,
           headers: corsHeaders,
           body: JSON.stringify({
-            message: "Contatto creato con successo",
+            message: "Contatto e ticket creati con successo",
             contactId: contact.id,
+            ticketId: ticket.id,
             file: fileInfo,
           }),
         });
@@ -142,7 +190,6 @@ export const handler: Handler = async (
       }
     });
 
-    // `body` is base64-encoded in Netlify functions when using multipart/form-data
     busboy.end(Buffer.from(event.body || "", "base64"));
   });
 };
