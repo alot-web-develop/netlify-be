@@ -135,10 +135,7 @@ exports.handler = async (event) => {
         if (fileBuffer) {
           console.log("3. Upload file su HubSpot");
           const form = new FormData();
-          form.append("file", fileBuffer, {
-            filename: fileName,
-            contentType: mimeType,
-          });
+          form.append("file", fileBuffer, fileName);
           form.append(
             "options",
             JSON.stringify({
