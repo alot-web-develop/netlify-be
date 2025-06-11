@@ -136,6 +136,15 @@ exports.handler = async (event) => {
           console.log("3. Upload file su HubSpot");
           const form = new FormData();
           form.append("file", fileBuffer, fileName);
+          const sanitizedFolderName = fields.name
+            ? fields.name
+                .trim()
+                .toLowerCase()
+                .replace(/\s+/g, "-")
+                .replace(/[^a-z0-9-_]/g, "")
+            : "uploads";
+
+          form.append("folderPath", `tickets/${sanitizedFolderName}`);
           form.append(
             "options",
             JSON.stringify({
