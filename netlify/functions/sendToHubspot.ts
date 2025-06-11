@@ -66,8 +66,8 @@ async function sendToHubspot(fields: Record<string, string>) {
 
   const payload = {
     fields: [
-      { name: "subject", value: fields.name },
-      { name: "content", value: fields.message },
+      { name: "TICKET.subject", value: fields.name },
+      { name: "TICKET.content", value: fields.message },
       { name: "email", value: fields.email },
       { name: "phone", value: fields.phone || "" },
       { name: "company", value: fields.practice || "" },
