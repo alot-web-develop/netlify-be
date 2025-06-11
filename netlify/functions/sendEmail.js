@@ -6,9 +6,12 @@ const fs = require("fs");
 
 require("dotenv").config();
 
-function readSecret(fallbackEnvVar) {
-  return process.env[fallbackEnvVar];
-}
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "http://localhost:3000",
+  "Access-Control-Allow-Credentials": "true",
+  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
 
 const auth = new google.auth.GoogleAuth({
   credentials: JSON.parse(process.env.SECURITY_JSON || "{}"),
@@ -64,6 +67,7 @@ exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
     return {
       statusCode: 405,
+      headers: corsHeaders,
       body: "Method Not Allowed",
     };
   }
@@ -110,11 +114,11 @@ exports.handler = async (event) => {
     }
 
     const transporter = nodemailer.createTransport({
-      host: readSecret("GMAIL_HOST"),
+      host: process.env.GMAIL_HOST,
       port: 587,
       auth: {
-        user: readSecret("GMAIL_USER"),
-        pass: readSecret("GMAIL_PASS"),
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_PASS,
       },
     });
 
@@ -136,6 +140,7 @@ exports.handler = async (event) => {
 
     return {
       statusCode: 200,
+      headers: corsHeaders,
       body: JSON.stringify({
         status: "success",
         message: "Email sent and data saved.",
@@ -145,6 +150,7 @@ exports.handler = async (event) => {
     console.error(err);
     return {
       statusCode: 500,
+      headers: corsHeaders,
       body: JSON.stringify({ status: "error", message: err.message }),
     };
   }
