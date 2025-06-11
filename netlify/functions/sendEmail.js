@@ -75,7 +75,17 @@ exports.handler = async (event) => {
   try {
     const form = new multiparty.Form();
     const data = await new Promise((resolve, reject) => {
-      form.parse(Buffer.from(event.body, "base64"), (err, fields, files) => {
+      const form = new multiparty.Form();
+      const buffer = Buffer.from(event.body, "base64");
+
+      // Simula una richiesta HTTP con stream + headers
+      const req = require("stream").Readable.from(buffer);
+      req.headers = {
+        "content-type": event.headers["content-type"],
+        "content-length": event.headers["content-length"] || buffer.length,
+      };
+
+      form.parse(req, (err, fields, files) => {
         if (err) reject(err);
         else resolve({ fields, files });
       });
