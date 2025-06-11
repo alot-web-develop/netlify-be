@@ -92,25 +92,20 @@ async function sendToHubspot(fields: Record<string, string>) {
   return await res.json();
 }
 
+// ✅ HANDLER AGGIORNATO CON HEADER CORS SU TUTTE LE RISPOSTE
 export const handler: Handler = async (
   event: HandlerEvent
 ): Promise<HandlerResponse> => {
-  if (!event.body) {
-    return {
-      statusCode: 400,
-      body: "Missing body",
-    };
-  }
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": "*", // o specifica il tuo dominio
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+  };
 
   if (event.httpMethod === "OPTIONS") {
-    // Preflight response per CORS
     return {
       statusCode: 200,
-      headers: {
-        "Access-Control-Allow-Origin": "*", // o specifica il tuo dominio
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
-      },
+      headers: corsHeaders,
       body: "",
     };
   }
@@ -118,14 +113,20 @@ export const handler: Handler = async (
   if (event.httpMethod !== "POST") {
     return {
       statusCode: 405,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-      },
+      headers: corsHeaders,
       body: "Method Not Allowed",
     };
   }
 
-  return new Promise((resolve, reject) => {
+  if (!event.body) {
+    return {
+      statusCode: 400,
+      headers: corsHeaders,
+      body: "Missing body",
+    };
+  }
+
+  return new Promise((resolve) => {
     const busboy = new Busboy({ headers: event.headers });
     const fields: Record<string, string> = {};
     const attachments: any[] = [];
@@ -135,20 +136,22 @@ export const handler: Handler = async (
       fields[fieldname] = val;
     });
 
-    busboy.on("file", async (fieldname, file, filename, encoding, mimetype) => {
+    busboy.on("file", (fieldname, file, filename, encoding, mimetype) => {
       const buffers: Buffer[] = [];
       file.on("data", (data) => buffers.push(data));
       file.on("end", async () => {
-        const buffer = Buffer.concat(buffers);
-
-        const { link } = await uploadFileToDrive(buffer, filename, mimetype);
-        driveLinks.push(`${filename}: ${link}`);
-
-        attachments.push({
-          filename,
-          content: buffer,
-          contentType: mimetype,
-        });
+        try {
+          const buffer = Buffer.concat(buffers);
+          const { link } = await uploadFileToDrive(buffer, filename, mimetype);
+          driveLinks.push(`${filename}: ${link}`);
+          attachments.push({
+            filename,
+            content: buffer,
+            contentType: mimetype,
+          });
+        } catch (err) {
+          console.error("Errore upload:", err);
+        }
       });
     });
 
@@ -181,15 +184,17 @@ ${driveLinks.join("\n")}
 
         resolve({
           statusCode: 200,
+          headers: corsHeaders,
           body: JSON.stringify({
             status: "success",
             message: "Email e dati inviati con successo",
           }),
         });
-      } catch (err) {
+      } catch (err: any) {
         console.error("Errore:", err);
         resolve({
           statusCode: 500,
+          headers: corsHeaders,
           body: JSON.stringify({
             error: "Errore invio dati o email",
             details: err.message,
