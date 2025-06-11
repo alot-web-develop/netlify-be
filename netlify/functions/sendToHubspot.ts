@@ -66,11 +66,11 @@ async function sendToHubspot(fields: Record<string, string>) {
 
   const payload = {
     fields: [
-      { name: "name", value: fields.name },
-      { name: "email", value: fields.email },
-      { name: "phone", value: fields.phone },
-      { name: "practice", value: fields.practice },
-      { name: "message", value: fields.message },
+      { name: "name", value: fields.name || "" },
+      { name: "email", value: fields.email || "" },
+      { name: "phone", value: fields.phone || "" },
+      { name: "practice", value: fields.practice || "" },
+      { name: "message", value: fields.message || "" },
     ],
     context: {
       pageUri: fields.pageUri || "",
