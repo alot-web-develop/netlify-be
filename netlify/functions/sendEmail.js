@@ -17,6 +17,7 @@ const corsHeaders = {
 
 //----DECLARATION AUTH GOOGLE
 
+//
 const serviceAccount = {
   type: process.env.SAK_TYPE,
   project_id: process.env.SAK_PROJECT_ID,
