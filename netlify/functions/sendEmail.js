@@ -98,11 +98,18 @@ async function uploadFileToDrive(fileBuffer, filename, mimeType, folderId) {
 exports.handler = async (event) => {
   ///// ---- AVVIO HANDLER ----
 
-  console.log("Chiave processata:", serviceAccount.private_key);
-
   console.log("Lambda triggered");
 
   ///// ---- CONTROLLO METODO HTTP ----
+
+  if (event.httpMethod === "OPTIONS") {
+    console.log("Handling OPTIONS preflight request");
+    return {
+      statusCode: 200,
+      headers: corsHeaders,
+      body: "OK (CORS preflight)",
+    };
+  }
 
   if (event.httpMethod !== "POST") {
     console.log("Invalid method:", event.httpMethod);
