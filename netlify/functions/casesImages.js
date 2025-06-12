@@ -1,14 +1,54 @@
 const { google } = require("googleapis");
 require("dotenv").config();
 
+//----DECLARATION CORS
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "http://localhost:3000",
+  "Access-Control-Allow-Credentials": "true",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+//----DECLARATION AUTH GOOGLE
+
+const serviceAccount = {
+  type: process.env.SAK_TYPE,
+  project_id: process.env.SAK_PROJECT_ID,
+  private_key_id: process.env.SAK_PRIVATE_KEY_ID,
+  private_key: process.env.SAK_PRIVATE_KEY.replace(/@/g, "\n"),
+  client_email: process.env.SAK_CLIENT_EMAIL,
+  client_id: process.env.SAK_CLIENT_ID,
+  auth_uri: process.env.SAK_AUTH_URI,
+  token_uri: process.env.SAK_TOKEN_URI,
+  auth_provider_x509_cert_url: process.env.SAK_AUTH_PROVIDER_X509_CERT_URL,
+  client_x509_cert_url: process.env.SAK_CLIENT_X509_CERT_URL,
+  universe_domain: process.env.SAK_UNIVERSE_DOMAIN,
+};
+
 const auth = new google.auth.GoogleAuth({
-  credentials: JSON.parse(process.env.SECURITY_JSON || "{}"),
+  credentials: serviceAccount,
   scopes: ["https://www.googleapis.com/auth/drive.readonly"],
 });
 
 const drive = google.drive({ version: "v3", auth });
 
-exports.handler = async () => {
+//////////////////////////////////
+/////----HANDLER
+//////////////////////////////////
+
+exports.handler = async (event) => {
+  ///// ---- CONTROLLO METODO HTTP ----
+
+  if (event.httpMethod === "OPTIONS") {
+    console.log("Handling OPTIONS preflight request");
+    return {
+      statusCode: 200,
+      headers: corsHeaders,
+      body: "OK (CORS preflight)",
+    };
+  }
+
   try {
     const response = await drive.files.list({
       q: `'${process.env.DRIVE_CASEFOLDER_ID}' in parents and trashed = false`,
@@ -62,11 +102,13 @@ exports.handler = async () => {
 
     return {
       statusCode: 200,
+      headers: corsHeaders,
       body: JSON.stringify(imageList.filter(Boolean)),
     };
   } catch (err) {
     return {
       statusCode: 500,
+      headers: corsHeaders,
       body: JSON.stringify({ error: err.message }),
     };
   }
