@@ -98,6 +98,8 @@ async function uploadFileToDrive(fileBuffer, filename, mimeType, folderId) {
 exports.handler = async (event) => {
   ///// ---- AVVIO HANDLER ----
 
+  console.log("Chiave processata:", serviceAccount.private_key);
+
   console.log("Lambda triggered");
 
   ///// ---- CONTROLLO METODO HTTP ----
