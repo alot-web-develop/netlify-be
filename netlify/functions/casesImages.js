@@ -28,7 +28,10 @@ const serviceAccount = {
 
 const auth = new google.auth.GoogleAuth({
   credentials: serviceAccount,
-  scopes: ["https://www.googleapis.com/auth/drive.readonly"],
+  scopes: [
+    "https://www.googleapis.com/auth/drive.readonly",
+    "https://www.googleapis.com/auth/drive.file",
+  ],
 });
 
 const drive = google.drive({ version: "v3", auth });
