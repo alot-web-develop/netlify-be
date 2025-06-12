@@ -1,11 +1,15 @@
 const { google } = require("googleapis");
 
+//----DECLARATION CORS
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "http://localhost:3000",
   "Access-Control-Allow-Credentials": "true",
   "Access-Control-Allow-Headers": "Content-Type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
+
+//----DECLARATION AUTH GOOGLE
 
 const serviceAccount = {
   type: process.env.SAK_TYPE,
@@ -30,7 +34,22 @@ const auth = new google.auth.GoogleAuth({
   ],
 });
 
+//////////////////////////////////
+/////----HANDLER
+//////////////////////////////////
+
 exports.handler = async (event) => {
+  // GESTIONE PRE-FLIGHT CORS
+
+  if (event.httpMethod === "OPTIONS") {
+    console.log("Handling OPTIONS preflight request");
+    return {
+      statusCode: 200,
+      headers: corsHeaders,
+      body: "OK (CORS preflight)",
+    };
+  }
+
   const AUTH_SECRET = process.env.HUBSPOT_FORM_GUID;
   const authHeader = event.headers.authorization;
 

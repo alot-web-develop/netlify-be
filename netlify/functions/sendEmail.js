@@ -12,7 +12,7 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-// //----DECLARATION AUTH GOOGLE
+//----DECLARATION AUTH GOOGLE
 
 const serviceAccount = {
   type: process.env.SAK_TYPE,
