@@ -1,5 +1,12 @@
 const { google } = require("googleapis");
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "http://localhost:3000",
+  "Access-Control-Allow-Credentials": "true",
+  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
 const serviceAccount = {
   type: process.env.SAK_TYPE,
   project_id: process.env.SAK_PROJECT_ID,
@@ -30,6 +37,7 @@ exports.handler = async (event) => {
   if (authHeader !== `Bearer ${AUTH_SECRET}`) {
     return {
       statusCode: 401,
+      headers: corsHeaders,
       body: JSON.stringify({ error: "Unauthorized" }),
     };
   }
@@ -41,10 +49,7 @@ exports.handler = async (event) => {
 
     return {
       statusCode: 200,
-      headers: {
-        "Access-Control-Allow-Origin": "http://localhost:3000",
-        "Access-Control-Allow-Headers": "Content-Type",
-      },
+      headers: corsHeaders,
       body: JSON.stringify({
         accessToken,
         expiresIn: 3600,
@@ -53,6 +58,7 @@ exports.handler = async (event) => {
   } catch (err) {
     return {
       statusCode: 500,
+      headers: corsHeaders,
       body: JSON.stringify({ error: err.message }),
     };
   }
