@@ -1,1 +1,4 @@
 .env
+security-key.json
+# Local Netlify folder
+.netlify

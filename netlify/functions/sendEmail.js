@@ -17,8 +17,22 @@ const corsHeaders = {
 
 //----DECLARATION AUTH GOOGLE
 
+const serviceAccount = {
+  type: process.env.SAK_TYPE,
+  project_id: process.env.SAK_PROJECT_ID,
+  private_key_id: process.env.SAK_PRIVATE_KEY_ID,
+  private_key: process.env.SAK_PRIVATE_KEY.replace(/\\n/g, "\n"),
+  client_email: process.env.SAK_CLIENT_EMAIL,
+  client_id: process.env.SAK_CLIENT_ID,
+  auth_uri: process.env.SAK_AUTH_URI,
+  token_uri: process.env.SAK_TOKEN_URI,
+  auth_provider_x509_cert_url: process.env.SAK_AUTH_PROVIDER_X509_CERT_URL,
+  client_x509_cert_url: process.env.SAK_CLIENT_X509_CERT_URL,
+  universe_domain: process.env.SAK_UNIVERSE_DOMAIN,
+};
+
 const auth = new google.auth.GoogleAuth({
-  credentials: JSON.parse(process.env.SECURITY_JSON || "{}"),
+  credentials: serviceAccount,
   scopes: [
     "https://www.googleapis.com/auth/drive.file",
     "https://www.googleapis.com/auth/drive.readonly",
