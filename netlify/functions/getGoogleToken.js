@@ -50,7 +50,7 @@ exports.handler = async (event) => {
     };
   }
 
-  const AUTH_SECRET = process.env.HUBSPOT_FORM_GUID;
+  const AUTH_SECRET = process.env.SHARED_KEY;
   const authHeader = event.headers.authorization;
 
   if (authHeader !== `Bearer ${AUTH_SECRET}`) {
