@@ -1,8 +1,5 @@
 const { google } = require("googleapis");
 const nodemailer = require("nodemailer");
-const multiparty = require("multiparty");
-const { Readable } = require("stream");
-const fs = require("fs");
 
 require("dotenv").config();
 
@@ -15,9 +12,8 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-//----DECLARATION AUTH GOOGLE
+// //----DECLARATION AUTH GOOGLE
 
-//
 const serviceAccount = {
   type: process.env.SAK_TYPE,
   project_id: process.env.SAK_PROJECT_ID,
@@ -41,55 +37,8 @@ const auth = new google.auth.GoogleAuth({
   ],
 });
 
-const drive = google.drive({ version: "v3", auth });
+// const drive = google.drive({ version: "v3", auth });
 const sheets = google.sheets({ version: "v4", auth });
-
-//----FUNCTION: BUFFER TO STREAM
-
-function bufferToStream(buffer) {
-  const stream = new Readable();
-  stream.push(buffer);
-  stream.push(null);
-  return stream;
-}
-
-//----FUNCTION: CARICA SU DRIVE
-
-async function uploadFileToDrive(fileBuffer, filename, mimeType, folderId) {
-  ///// ---- UPLOAD FILE SU GOOGLE DRIVE: carica e rende pubblico il file ----
-  console.log(`Uploading file to Drive: ${filename}, type: ${mimeType}`);
-
-  const stream = bufferToStream(fileBuffer);
-
-  const res = await drive.files.create({
-    requestBody: {
-      name: filename,
-      mimeType,
-      parents: [folderId],
-    },
-    media: {
-      mimeType,
-      body: stream,
-    },
-    fields: "id",
-  });
-
-  const fileId = res.data.id;
-  console.log(`File uploaded, ID: ${fileId}`);
-
-  await drive.permissions.create({
-    fileId,
-    requestBody: { role: "reader", type: "anyone" },
-  });
-
-  const result = await drive.files.get({
-    fileId,
-    fields: "webViewLink, webContentLink",
-  });
-
-  console.log(`File permission set. Link: ${result.data.webViewLink}`);
-  return result.data.webViewLink;
-}
 
 //////////////////////////////////
 /////----HANDLER
@@ -121,64 +70,30 @@ exports.handler = async (event) => {
   }
 
   try {
-    ///// ---- PARSING MULTIPART FORM ----
-
-    console.log("Parsing multipart form");
-
-    const data = await new Promise((resolve, reject) => {
-      const form = new multiparty.Form();
-      const buffer = Buffer.from(event.body, "base64");
-
-      const req = require("stream").Readable.from(buffer);
-      req.headers = {
-        "content-type": event.headers["content-type"],
-        "content-length": event.headers["content-length"] || buffer.length,
-      };
-
-      form.parse(req, (err, fields, files) => {
-        if (err) {
-          ///// ---- ERRORE PARSING FORM ----
-
-          console.error("Form parse error:", err);
-          reject(err);
-        } else {
-          console.log("Form parsed successfully");
-          resolve({ fields, files });
-        }
-      });
-    });
-
     ///// ---- ESTRAZIONE CAMPI DAL FORM ----
 
-    const { name, email, message, phone, practice, consentText, formId } =
-      Object.fromEntries(
-        Object.entries(data.fields).map(([k, v]) => [k, v[0]])
-      );
+    const body = JSON.parse(event.body);
+    const {
+      name,
+      email,
+      message,
+      phone,
+      practice,
+      consentText,
+      formId,
+      fileLinks,
+    } = body;
 
-    console.log("Parsed fields:", { name, email, phone, practice, formId });
-
-    ///// ---- UPLOAD FILE (SE PRESENTI) ----
-
-    const fileLinks = [];
-
-    if (data.files && Object.keys(data.files).length > 0) {
-      console.log("Processing uploaded files");
-
-      for (const key in data.files) {
-        for (const file of data.files[key]) {
-          const buffer = fs.readFileSync(file.path);
-          const link = await uploadFileToDrive(
-            buffer,
-            file.originalFilename,
-            file.headers["content-type"],
-            process.env.DRIVE_FOLDER_ID
-          );
-          fileLinks.push({ filename: file.originalFilename, link });
-        }
-      }
-    }
-
-    ///// ---- COSTRUZIONE TESTO EMAIL ----
+    console.log("fields:", {
+      name,
+      email,
+      message,
+      phone,
+      practice,
+      consentText,
+      formId,
+      fileLinks,
+    });
 
     let text = `Name: ${name}\nEmail: ${email}\nMessage: ${message}`;
     text += `\nPhone: ${phone || "not provided"}`;
