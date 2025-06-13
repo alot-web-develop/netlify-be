@@ -1,13 +1,11 @@
 const { google } = require("googleapis");
 
-//----DECLARATION CORS
+//----DECLARATION ALLOWED ORIGINS
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "http://localhost:3000",
-  "Access-Control-Allow-Credentials": "true",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://olamide.alotwebstudio.com/",
+];
 
 //----DECLARATION AUTH GOOGLE
 
@@ -39,6 +37,18 @@ const auth = new google.auth.GoogleAuth({
 //////////////////////////////////
 
 exports.handler = async (event) => {
+  //----DECLARATION CORS
+
+  const origin = event.headers.origin;
+
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": allowedOrigins.includes(origin)
+      ? origin
+      : "",
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
   // GESTIONE PRE-FLIGHT CORS
 
   if (event.httpMethod === "OPTIONS") {
