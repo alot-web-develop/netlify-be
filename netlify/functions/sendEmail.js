@@ -7,7 +7,7 @@ require("dotenv").config();
 
 const allowedOrigins = [
   "http://localhost:3000",
-  "https://olamide.alotwebstudio.com/",
+  "https://olamide.alotwebstudio.com",
 ];
 
 //----DECLARATION AUTH GOOGLE
