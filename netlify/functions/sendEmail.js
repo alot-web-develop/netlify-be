@@ -129,7 +129,7 @@ exports.handler = async (event) => {
 
     await transporter.sendMail({
       from: process.env.GMAIL_USER,
-      to: "alot.webstudio@gmail.com",
+      to: "olamidedentaltechnology@gmail.com",
       subject: `New message from ${name}`,
       text,
     });
