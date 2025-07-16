@@ -108,8 +108,8 @@ exports.handler = async (event) => {
             imgSrc: `https://drive.google.com/thumbnail?id=${file.id}&sz=w1000`,
             alt: file.name.replace(/\.\w+$/, "").replace(/[-_]/g, " "),
           };
-        } catch {
-          return null;
+        } catch (err) {
+          throw new Error(err);
         }
       })
     );
