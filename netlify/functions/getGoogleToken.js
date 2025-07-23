@@ -1,12 +1,5 @@
 const { google } = require("googleapis");
-
-//----DECLARATION ALLOWED ORIGINS
-
-const allowedOrigins = [
-  "http://localhost:3000",
-  "https://olamide.alotwebstudio.com",
-  "https://olamidedentaltechnology.co.uk",
-];
+const { handleCorsAndMethod } = require('../../lib/cors-handler');
 //
 //----DECLARATION AUTH GOOGLE
 
@@ -38,28 +31,12 @@ const auth = new google.auth.GoogleAuth({
 //////////////////////////////////
 
 exports.handler = async (event) => {
-  //----DECLARATION CORS
-
-  const origin = event.headers.origin;
-
-  const corsHeaders = {
-    "Access-Control-Allow-Origin": allowedOrigins.includes(origin)
-      ? origin
-      : "",
-    "Access-Control-Allow-Credentials": "true",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-  };
-  // GESTIONE PRE-FLIGHT CORS
-
-  if (event.httpMethod === "OPTIONS") {
-    console.log("Handling OPTIONS preflight request");
-    return {
-      statusCode: 200,
-      headers: corsHeaders,
-      body: "OK (CORS preflight)",
-    };
+  // Gestione CORS e controllo metodo HTTP
+  const corsCheck = handleCorsAndMethod(event, 'POST', 'Content-Type, Authorization');
+  if (corsCheck.statusCode) {
+    return corsCheck;
   }
+  const { corsHeaders } = corsCheck;
 
   const AUTH_SECRET = process.env.SHARED_KEY;
   const authHeader = event.headers.authorization;

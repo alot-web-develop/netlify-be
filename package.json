@@ -6,7 +6,8 @@
   "packageManager": "yarn@1.22.22",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "netlify dev"
+    "dev": "netlify dev",
+    "get-token": "node get-refresh-token.js"
   },
   "keywords": [],
   "author": "",
@@ -25,6 +26,7 @@
     "googleapis": "^150.0.1",
     "multiparty": "^4.2.3",
     "netlify-cli": "^22.2.2",
-    "nodemailer": "^7.0.3"
+    "nodemailer": "^7.0.3",
+    "open": "^8.4.0"
   }
 }
