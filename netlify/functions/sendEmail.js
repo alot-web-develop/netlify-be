@@ -1,15 +1,8 @@
 const { google } = require("googleapis");
 const nodemailer = require("nodemailer");
+const { handleCorsAndMethod } = require('../../lib/cors-handler');
 
 require("dotenv").config();
-
-//----DECLARATION ALLOWED ORIGINS
-
-const allowedOrigins = [
-  "http://localhost:3000",
-  "https://olamide.alotwebstudio.com",
-  "https://olamidedentaltechnology.co.uk",
-];
 
 //----DECLARATION AUTH GOOGLE
 
@@ -44,40 +37,12 @@ const sheets = google.sheets({ version: "v4", auth });
 //////////////////////////////////
 
 exports.handler = async (event) => {
-  ///// ---- DECLARATION CORS ----
-  const origin = event.headers.origin;
-
-  const corsHeaders = {
-    "Access-Control-Allow-Origin": allowedOrigins.includes(origin)
-      ? origin
-      : "",
-    "Access-Control-Allow-Credentials": "true",
-    "Access-Control-Allow-Headers": "Content-Type",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-  };
-  ///// ---- AVVIO HANDLER ----
-
-  console.log("Lambda triggered");
-
-  ///// ---- CONTROLLO METODO HTTP ----
-
-  if (event.httpMethod === "OPTIONS") {
-    console.log("Handling OPTIONS preflight request");
-    return {
-      statusCode: 200,
-      headers: corsHeaders,
-      body: "OK (CORS preflight)",
-    };
+  // Gestione CORS e controllo metodo HTTP
+  const corsCheck = handleCorsAndMethod(event, 'POST', 'Content-Type');
+  if (corsCheck.statusCode) {
+    return corsCheck;
   }
-
-  if (event.httpMethod !== "POST") {
-    console.log("Invalid method:", event.httpMethod);
-    return {
-      statusCode: 405,
-      headers: corsHeaders,
-      body: "Method Not Allowed",
-    };
-  }
+  const { corsHeaders } = corsCheck;
 
   try {
     ///// ---- ESTRAZIONE CAMPI DAL FORM ----

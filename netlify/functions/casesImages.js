@@ -1,13 +1,7 @@
 const { google } = require("googleapis");
+const { handleCorsAndMethod } = require('../../lib/cors-handler');
+
 require("dotenv").config();
-
-//----DECLARATION ALLOWED ORIGINS
-
-const allowedOrigins = [
-  "http://localhost:3000",
-  "https://olamide.alotwebstudio.com",
-  "https://olamidedentaltechnology.co.uk",
-];
 
 //----DECLARATION AUTH GOOGLE
 
@@ -40,28 +34,12 @@ const drive = google.drive({ version: "v3", auth });
 //////////////////////////////////
 
 exports.handler = async (event) => {
-  ///// ---- DECLARATION CORS ----
-  const origin = event.headers.origin;
-
-  const corsHeaders = {
-    "Access-Control-Allow-Origin": allowedOrigins.includes(origin)
-      ? origin
-      : "",
-    "Access-Control-Allow-Credentials": "true",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-  };
-
-  ///// ---- CONTROLLO METODO HTTP ----
-
-  if (event.httpMethod === "OPTIONS") {
-    console.log("Handling OPTIONS preflight request");
-    return {
-      statusCode: 200,
-      headers: corsHeaders,
-      body: "OK (CORS preflight)",
-    };
+  // Gestione CORS e controllo metodo HTTP
+  const corsCheck = handleCorsAndMethod(event, 'GET', 'Content-Type, Authorization');
+  if (corsCheck.statusCode) {
+    return corsCheck;
   }
+  const { corsHeaders } = corsCheck;
 
   try {
     const response = await drive.files.list({
