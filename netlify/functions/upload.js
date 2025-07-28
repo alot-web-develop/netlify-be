@@ -1,10 +1,39 @@
 const OAuth2TokenManager = require("../../lib/oauth2-manager");
 const { targetFolderId } = require("../../lib/config");
 const { handleCorsAndMethod } = require("../../lib/cors-handler");
+const {
+  ValidationError,
+  GoogleDriveError,
+  validateUploadRequest,
+  createGoogleDriveSession,
+  generateNetlifyUploadUrl,
+  storeUploadSession,
+  extractSessionId,
+  createUploadResponse,
+  createErrorResponse,
+  cleanupExpiredSessions
+} = require("../../lib/utils/upload-utils");
 
 const tokenManager = new OAuth2TokenManager();
 
+/**
+ * Authenticate request using Bearer token
+ * @param {Object} event - Lambda event object
+ * @returns {boolean} True if authenticated
+ */
+function authenticateRequest(event) {
+  const AUTH_SECRET = process.env.SHARED_KEY;
+  const authHeader = event.headers.authorization;
+  return authHeader === `Bearer ${AUTH_SECRET}`;
+}
+
+/**
+ * Main upload handler - creates a resumable upload session
+ * @param {Object} event - Lambda event object
+ * @returns {Promise<Object>} HTTP response
+ */
 exports.handler = async (event) => {
+  // Handle CORS and validate HTTP method
   const corsCheck = handleCorsAndMethod(
     event,
     "POST",
@@ -14,146 +43,77 @@ exports.handler = async (event) => {
   if (corsCheck.statusCode) return corsCheck;
   const { corsHeaders } = corsCheck;
 
-  const AUTH_SECRET = process.env.SHARED_KEY;
-  const authHeader = event.headers.authorization;
-
-  if (authHeader !== `Bearer ${AUTH_SECRET}`) {
-    return {
-      statusCode: 401,
-      headers: corsHeaders,
-      body: JSON.stringify({ error: "Unauthorized" }),
-    };
+  // Authenticate request
+  if (!authenticateRequest(event)) {
+    return createErrorResponse(401, "Unauthorized", corsHeaders);
   }
 
-  try {
-    const body = JSON.parse(event.body);
-    const { fileName, fileSize, mimeType } = body;
+  // Clean up expired sessions periodically
+  cleanupExpiredSessions();
 
-    if (!fileName || !fileSize || !mimeType) {
-      return {
-        statusCode: 400,
-        headers: corsHeaders,
-        body: JSON.stringify({
-          error: "Missing required fields: fileName, fileSize, mimeType",
-        }),
-      };
+  try {
+    // Parse and validate request body
+    let requestBody;
+    try {
+      requestBody = JSON.parse(event.body);
+    } catch (parseError) {
+      return createErrorResponse(400, "Invalid JSON in request body", corsHeaders);
     }
 
-    const fileMetadata = {
-      name: fileName,
-      parents: [targetFolderId],
-    };
+    const { fileName, fileSize, mimeType } = validateUploadRequest(requestBody);
 
+    // Get Google Drive access token
     const accessToken = await tokenManager.getAccessToken();
 
-    // Chiamata manuale per creare sessione resumable e ottenere URL specifico
-    const https = require("https");
-
-    const uploadUrl = await new Promise((resolve, reject) => {
-      const postData = JSON.stringify(fileMetadata);
-
-      const options = {
-        hostname: "www.googleapis.com",
-        port: 443,
-        path: "/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true",
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-          "X-Upload-Content-Type": mimeType,
-          "X-Upload-Content-Length": fileSize.toString(),
-          "Content-Length": Buffer.byteLength(postData),
-        },
-      };
-
-      const req = https.request(options, (res) => {
-        let responseData = "";
-        res.on("data", (chunk) => (responseData += chunk));
-
-        res.on("end", () => {
-          if (res.statusCode !== 200) {
-            try {
-              const errorJson = JSON.parse(responseData);
-              reject(
-                new Error(
-                  `Failed to initialize upload: ${res.statusCode} - ${
-                    errorJson.error?.message || responseData
-                  }`
-                )
-              );
-            } catch {
-              reject(
-                new Error(
-                  `Failed to initialize upload: ${res.statusCode} - ${responseData}`
-                )
-              );
-            }
-            return;
-          }
-        });
-
-        const location = res.headers.location;
-        if (location) {
-          resolve(location);
-        } else {
-          reject(new Error("No upload URL in Location header"));
-        }
-      });
-
-      req.on("error", reject);
-      req.write(postData);
-      req.end();
-    });
-
-    if (!uploadUrl) {
-      throw new Error("No upload URL received from Google Drive");
-    }
-
-    const sessionId =
-      uploadUrl?.split?.("upload_id=")?.[1]?.split("&")[0] ||
-      `session_${Date.now()}`;
-
-    global.uploadSessions = global.uploadSessions || new Map();
-    global.uploadSessions.set(sessionId, {
-      uploadUrl,
+    // Create resumable upload session with Google Drive
+    const googleUploadUrl = await createGoogleDriveSession({
       fileName,
       fileSize,
       mimeType,
-      createdAt: Date.now(),
+      targetFolderId,
+      accessToken
     });
 
-    const netlifyUploadUrl = `${
-      event.headers.origin?.replace("3000", "8888") || "http://localhost:8888"
-    }/.netlify/functions/upload-proxy?session=${sessionId}`;
+    // Extract session ID and create Netlify proxy URL
+    const sessionId = extractSessionId(googleUploadUrl);
+    const netlifyUploadUrl = generateNetlifyUploadUrl(sessionId, event.headers.origin);
 
-    return {
-      statusCode: 200,
-      headers: corsHeaders,
-      body: JSON.stringify({
-        uploadUrl: netlifyUploadUrl, // URL "presigned" Netlify
-        sessionId,
-        fileName,
-        fileSize,
-        mimeType,
-        expiresIn: 3600, // 1 ora
-        instructions: {
-          method: "PUT",
-          headers: {
-            "Content-Type": mimeType,
-            "Content-Length": fileSize.toString(),
-          },
-          note: "Upload directly to this Netlify URL - no CORS issues",
-        },
-      }),
-    };
-  } catch (err) {
-    return {
-      statusCode: 500,
-      headers: corsHeaders,
-      body: JSON.stringify({
-        error: "Failed to create upload session",
-        details: err.message,
-      }),
-    };
+    // Store session data for later use by upload-proxy
+    storeUploadSession(sessionId, {
+      uploadUrl: googleUploadUrl,
+      fileName,
+      fileSize,
+      mimeType
+    });
+
+    // Return success response with upload instructions
+    return createUploadResponse({
+      uploadUrl: netlifyUploadUrl,
+      sessionId,
+      fileName,
+      fileSize,
+      mimeType,
+      corsHeaders
+    });
+
+  } catch (error) {
+    // Handle specific error types
+    if (error instanceof ValidationError) {
+      return createErrorResponse(400, error.message, corsHeaders);
+    }
+
+    if (error instanceof GoogleDriveError) {
+      const statusCode = error.statusCode >= 400 && error.statusCode < 600 ? error.statusCode : 502;
+      return createErrorResponse(statusCode, error.message, corsHeaders);
+    }
+
+    // Handle OAuth token errors
+    if (error.message?.includes('token') || error.message?.includes('auth')) {
+      return createErrorResponse(401, "Authentication failed", corsHeaders, error.message);
+    }
+
+    // Generic error fallback
+    console.error('Upload session creation failed:', error);
+    return createErrorResponse(500, "Failed to create upload session", corsHeaders, error.message);
   }
 };

@@ -1,6 +1,6 @@
 const { google } = require("googleapis");
 const nodemailer = require("nodemailer");
-const { handleCorsAndMethod } = require('../../lib/cors-handler');
+const { handleCorsAndMethod } = require("../../lib/cors-handler");
 
 require("dotenv").config();
 
@@ -38,7 +38,7 @@ const sheets = google.sheets({ version: "v4", auth });
 
 exports.handler = async (event) => {
   // Gestione CORS e controllo metodo HTTP
-  const corsCheck = handleCorsAndMethod(event, 'POST', 'Content-Type');
+  const corsCheck = handleCorsAndMethod(event, "POST", "Content-Type");
   if (corsCheck.statusCode) {
     return corsCheck;
   }
@@ -58,17 +58,6 @@ exports.handler = async (event) => {
       formId,
       fileLinks,
     } = body;
-
-    console.log("fields:", {
-      name,
-      email,
-      message,
-      phone,
-      practice,
-      consentText,
-      formId,
-      fileLinks,
-    });
 
     let text = `Name: ${name}\nEmail: ${email}\nMessage: ${message}`;
     text += `\nPhone: ${phone || "not provided"}`;
