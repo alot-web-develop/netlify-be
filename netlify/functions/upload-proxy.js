@@ -1,5 +1,6 @@
 const https = require('https');
 const { URL } = require('url');
+const { handleCorsAndMethod } = require('../../lib/cors-handler');
 const OAuth2TokenManager = require('../../lib/oauth2-manager');
 const { allowedOrigins } = require('../../lib/config');
 

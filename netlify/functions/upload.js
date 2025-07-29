@@ -1,5 +1,5 @@
 const OAuth2TokenManager = require("../../lib/oauth2-manager");
-const { targetFolderId } = require("../../lib/config");
+const { uploadFolderId } = require("../../lib/config");
 const { handleCorsAndMethod } = require("../../lib/cors-handler");
 const {
   ValidationError,
@@ -11,7 +11,7 @@ const {
   extractSessionId,
   createUploadResponse,
   createErrorResponse,
-  cleanupExpiredSessions
+  cleanupExpiredSessions,
 } = require("../../lib/utils/upload-utils");
 
 const tokenManager = new OAuth2TokenManager();
@@ -57,7 +57,11 @@ exports.handler = async (event) => {
     try {
       requestBody = JSON.parse(event.body);
     } catch (parseError) {
-      return createErrorResponse(400, "Invalid JSON in request body", corsHeaders);
+      return createErrorResponse(
+        400,
+        "Invalid JSON in request body",
+        corsHeaders
+      );
     }
 
     const { fileName, fileSize, mimeType } = validateUploadRequest(requestBody);
@@ -70,20 +74,23 @@ exports.handler = async (event) => {
       fileName,
       fileSize,
       mimeType,
-      targetFolderId,
-      accessToken
+      uploadFolderId,
+      accessToken,
     });
 
     // Extract session ID and create Netlify proxy URL
     const sessionId = extractSessionId(googleUploadUrl);
-    const netlifyUploadUrl = generateNetlifyUploadUrl(sessionId, event.headers.origin);
+    const netlifyUploadUrl = generateNetlifyUploadUrl(
+      sessionId,
+      event.headers.origin
+    );
 
     // Store session data for later use by upload-proxy
     storeUploadSession(sessionId, {
       uploadUrl: googleUploadUrl,
       fileName,
       fileSize,
-      mimeType
+      mimeType,
     });
 
     // Return success response with upload instructions
@@ -93,9 +100,8 @@ exports.handler = async (event) => {
       fileName,
       fileSize,
       mimeType,
-      corsHeaders
+      corsHeaders,
     });
-
   } catch (error) {
     // Handle specific error types
     if (error instanceof ValidationError) {
@@ -103,17 +109,30 @@ exports.handler = async (event) => {
     }
 
     if (error instanceof GoogleDriveError) {
-      const statusCode = error.statusCode >= 400 && error.statusCode < 600 ? error.statusCode : 502;
+      const statusCode =
+        error.statusCode >= 400 && error.statusCode < 600
+          ? error.statusCode
+          : 502;
       return createErrorResponse(statusCode, error.message, corsHeaders);
     }
 
     // Handle OAuth token errors
-    if (error.message?.includes('token') || error.message?.includes('auth')) {
-      return createErrorResponse(401, "Authentication failed", corsHeaders, error.message);
+    if (error.message?.includes("token") || error.message?.includes("auth")) {
+      return createErrorResponse(
+        401,
+        "Authentication failed",
+        corsHeaders,
+        error.message
+      );
     }
 
     // Generic error fallback
-    console.error('Upload session creation failed:', error);
-    return createErrorResponse(500, "Failed to create upload session", corsHeaders, error.message);
+    console.error("Upload session creation failed:", error);
+    return createErrorResponse(
+      500,
+      "Failed to create upload session",
+      corsHeaders,
+      error.message
+    );
   }
 };

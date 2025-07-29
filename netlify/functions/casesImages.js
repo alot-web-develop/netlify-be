@@ -1,13 +1,13 @@
-const { handleCorsAndMethod } = require('../../lib/cors-handler');
-const { casesFolderId } = require('../../lib/config');
+const { handleCorsAndMethod } = require("../../lib/cors-handler");
+const { casesFolderId } = require("../../lib/config");
 const {
   DriveValidationError,
   validateDriveRequest,
   fetchImageFiles,
   createSimpleDriveResponse,
-  createDriveErrorResponse
-} = require('../../lib/utils/drive-utils');
-const { GoogleAPIError } = require('../../lib/utils/google-api-client');
+  createDriveErrorResponse,
+} = require("../../lib/utils/drive-utils");
+const { GoogleAPIError } = require("../../lib/utils/google-api-client");
 
 /**
  * Main cases images handler - fetches and returns image list from Google Drive
@@ -16,7 +16,11 @@ const { GoogleAPIError } = require('../../lib/utils/google-api-client');
  */
 exports.handler = async (event) => {
   // Handle CORS and validate HTTP method
-  const corsCheck = handleCorsAndMethod(event, 'GET', 'Content-Type, Authorization');
+  const corsCheck = handleCorsAndMethod(
+    event,
+    "GET",
+    "Content-Type, Authorization"
+  );
   if (corsCheck.statusCode) {
     return corsCheck;
   }
@@ -31,37 +35,32 @@ exports.handler = async (event) => {
     if (!casesFolderId) {
       return createDriveErrorResponse(
         500,
-        'Google Drive folder not configured',
+        "Google Drive folder not configured",
         corsHeaders,
-        'DRIVE_CASEFOLDER_ID environment variable is missing'
+        "DRIVE_CASEFOLDER_ID environment variable is missing"
       );
     }
 
-    // Log processing start
     console.log(`Fetching images from Google Drive folder: ${casesFolderId}`);
 
     // Fetch and process image files
     const imageList = await fetchImageFiles(casesFolderId, {
-      ensurePublic: true,
-      includeMetadata: false
+      ensurePublic: false,
+      includeMetadata: false,
     });
 
-    // Log success
     console.log(`Successfully retrieved ${imageList.length} images`);
-
-    // Return simple response format for backward compatibility
     return createSimpleDriveResponse(imageList, corsHeaders);
-
   } catch (error) {
     // Handle specific error types
     if (error instanceof DriveValidationError) {
-      console.warn('Drive request validation failed:', error.message);
+      console.warn("Drive request validation failed:", error.message);
       return createDriveErrorResponse(400, error.message, corsHeaders);
     }
 
     if (error instanceof GoogleAPIError) {
-      console.error('Google Drive API error:', error.message);
-      
+      console.error("Google Drive API error:", error.message);
+
       // Determine appropriate status code
       let statusCode = 502; // Bad Gateway default
       if (error.statusCode >= 400 && error.statusCode < 600) {
@@ -69,57 +68,63 @@ exports.handler = async (event) => {
       }
 
       // Handle specific Google Drive errors
-      if (error.message.includes('not found') || error.message.includes('404')) {
+      if (
+        error.message.includes("not found") ||
+        error.message.includes("404")
+      ) {
         return createDriveErrorResponse(
           404,
-          'Drive folder not found',
+          "Drive folder not found",
           corsHeaders,
           `Folder ${casesFolderId} does not exist or is not accessible`
         );
       }
 
-      if (error.message.includes('permission') || error.message.includes('403')) {
+      if (
+        error.message.includes("permission") ||
+        error.message.includes("403")
+      ) {
         return createDriveErrorResponse(
           403,
-          'Insufficient permissions to access Drive folder',
+          "Insufficient permissions to access Drive folder",
           corsHeaders,
           error.message
         );
       }
 
-      if (error.message.includes('quota') || error.message.includes('rate')) {
+      if (error.message.includes("quota") || error.message.includes("rate")) {
         return createDriveErrorResponse(
           429,
-          'Google Drive API quota exceeded',
+          "Google Drive API quota exceeded",
           corsHeaders,
-          'Please try again later'
+          "Please try again later"
         );
       }
 
       return createDriveErrorResponse(
         statusCode,
-        'Google Drive API error',
+        "Google Drive API error",
         corsHeaders,
         error.message
       );
     }
 
     // Handle OAuth/authentication errors
-    if (error.message?.includes('token') || error.message?.includes('auth')) {
-      console.error('Authentication error:', error.message);
+    if (error.message?.includes("token") || error.message?.includes("auth")) {
+      console.error("Authentication error:", error.message);
       return createDriveErrorResponse(
         401,
-        'Authentication failed',
+        "Authentication failed",
         corsHeaders,
-        'Unable to authenticate with Google Drive'
+        "Unable to authenticate with Google Drive"
       );
     }
 
     // Generic error fallback
-    console.error('Unexpected error in cases images handler:', error);
+    console.error("Unexpected error in cases images handler:", error);
     return createDriveErrorResponse(
       500,
-      'Failed to retrieve images',
+      "Failed to retrieve images",
       corsHeaders,
       error.message
     );

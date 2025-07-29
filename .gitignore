@@ -1,6 +1,8 @@
+node_modules
+
 .env
+.env.dev
 security-key.json
 # Local Netlify folder
 .netlify
-node_modules
 .claude
