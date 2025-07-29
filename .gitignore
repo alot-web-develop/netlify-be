@@ -6,3 +6,6 @@ security-key.json
 # Local Netlify folder
 .netlify
 .claude
+
+# OAuth scripts
+scripts/
