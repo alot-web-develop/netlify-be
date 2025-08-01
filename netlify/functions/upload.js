@@ -33,7 +33,6 @@ function authenticateRequest(event) {
  * @returns {Promise<Object>} HTTP response
  */
 exports.handler = async (event) => {
-  // Handle CORS and validate HTTP method
   const corsCheck = handleCorsAndMethod(
     event,
     "POST",
@@ -43,7 +42,6 @@ exports.handler = async (event) => {
   if (corsCheck.statusCode) return corsCheck;
   const { corsHeaders } = corsCheck;
 
-  // Authenticate request
   if (!authenticateRequest(event)) {
     return createErrorResponse(401, "Unauthorized", corsHeaders);
   }
@@ -52,7 +50,6 @@ exports.handler = async (event) => {
   cleanupExpiredSessions();
 
   try {
-    // Parse and validate request body
     let requestBody;
     try {
       requestBody = JSON.parse(event.body);
@@ -65,11 +62,9 @@ exports.handler = async (event) => {
     }
 
     const { fileName, fileSize, mimeType } = validateUploadRequest(requestBody);
-
-    // Get Google Drive access token
     const accessToken = await tokenManager.getAccessToken();
 
-    // Create resumable upload session with Google Drive
+    // Create RESUMABLE upload session in Google Drive
     const googleUploadUrl = await createGoogleDriveSession({
       fileName,
       fileSize,
@@ -93,7 +88,6 @@ exports.handler = async (event) => {
       mimeType,
     });
 
-    // Return success response with upload instructions
     return createUploadResponse({
       uploadUrl: netlifyUploadUrl,
       sessionId,
@@ -103,21 +97,30 @@ exports.handler = async (event) => {
       corsHeaders,
     });
   } catch (error) {
-    // Handle specific error types
-    if (error instanceof ValidationError) {
-      return createErrorResponse(400, error.message, corsHeaders);
-    }
+    return errorsHandler(error);
+  }
+};
 
-    if (error instanceof GoogleDriveError) {
-      const statusCode =
-        error.statusCode >= 400 && error.statusCode < 600
-          ? error.statusCode
-          : 502;
-      return createErrorResponse(statusCode, error.message, corsHeaders);
-    }
+const errorsHandler = (error) => {
+  const [isValidationError, isGoogleDriveError, isAuthError] = [
+    error instanceof ValidationError,
+    error instanceof GoogleDriveError,
+    error.message?.includes("token") || error.message?.includes("auth"),
+  ];
 
-    // Handle OAuth token errors
-    if (error.message?.includes("token") || error.message?.includes("auth")) {
+  if (isValidationError)
+    return createErrorResponse(400, error.message, corsHeaders);
+
+  if (isGoogleDriveError) {
+    const statusCode =
+      error.statusCode >= 400 && error.statusCode < 600
+        ? error.statusCode
+        : 502;
+    return createErrorResponse(statusCode, error.message, corsHeaders);
+  }
+
+  if (isAuthError) {
+    {
       return createErrorResponse(
         401,
         "Authentication failed",
@@ -125,14 +128,12 @@ exports.handler = async (event) => {
         error.message
       );
     }
-
-    // Generic error fallback
-    console.error("Upload session creation failed:", error);
-    return createErrorResponse(
-      500,
-      "Failed to create upload session",
-      corsHeaders,
-      error.message
-    );
   }
+
+  return createErrorResponse(
+    500,
+    "Failed to create upload session",
+    corsHeaders,
+    error.message
+  );
 };

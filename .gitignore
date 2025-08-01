@@ -1,7 +1,7 @@
 node_modules
 
 .env
-.env.dev
+.env.local
 security-key.json
 # Local Netlify folder
 .netlify
