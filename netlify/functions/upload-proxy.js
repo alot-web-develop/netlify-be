@@ -120,7 +120,10 @@ exports.handler = async (event) => {
 
     return {
       statusCode: 200,
-      headers: corsHeaders,
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify({
         success: true,
         fileId: result.id,

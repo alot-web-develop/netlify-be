@@ -61,7 +61,7 @@ exports.handler = async (event) => {
       );
     }
 
-    const { fileName, fileSize, mimeType } = validateUploadRequest(requestBody);
+    const { fileName, fileSize, mimeType, requiresChunking } = validateUploadRequest(requestBody);
     const accessToken = await tokenManager.getAccessToken();
 
     // Create RESUMABLE upload session in Google Drive
@@ -73,12 +73,28 @@ exports.handler = async (event) => {
       accessToken,
     });
 
-    // Return Google Drive URL directly for upload
-    return createUploadResponse({
-      uploadUrl: googleUploadUrl, // Direct Google Drive URL
+    // Extract session ID and create Netlify proxy URL
+    const sessionId = extractSessionId(googleUploadUrl);
+    const netlifyUploadUrl = generateNetlifyUploadUrl(
+      sessionId,
+      event.headers.origin
+    );
+
+    // Store session data for later use by upload-proxy or chunked upload
+    storeUploadSession(sessionId, {
       fileName,
       fileSize,
       mimeType,
+      requiresChunking,
+    });
+
+    return createUploadResponse({
+      uploadUrl: requiresChunking ? null : netlifyUploadUrl, // Null for chunked uploads
+      sessionId,
+      fileName,
+      fileSize,
+      mimeType,
+      requiresChunking,
       corsHeaders,
     });
   } catch (error) {
