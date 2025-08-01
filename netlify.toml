@@ -3,7 +3,9 @@
 
 [functions]
   node_bundler = "esbuild"
-  # Set timeout for upload functions to handle larger files (max 30s)
+
+# Specific configuration for upload functions - 30 second timeout
+[functions."upload*"]
   timeout = 30
 
 
