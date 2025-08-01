@@ -32,7 +32,7 @@ exports.handler = async (event) => {
 
     if (!casesFolderId) {
       return createDriveErrorResponse(
-        500,
+        400,
         "Google Drive folder not configured",
         corsHeaders,
         "DRIVE_CASEFOLDER_ID environment variable is missing"
@@ -60,9 +60,9 @@ function errorsHandler(error, corsHeaders) {
   if (error instanceof GoogleAPIError) {
     console.error("Google Drive API error:", error.message);
 
-    // ERRORS
-    let statusCode = 502; // Bad Gateway default
-    if (error.statusCode >= 400 && error.statusCode < 600) {
+    // ERRORS - Use 4xx codes to avoid Netlify HTML error pages
+    let statusCode = 400; // Bad Request default
+    if (error.statusCode >= 400 && error.statusCode < 500) {
       statusCode = error.statusCode;
     }
 
@@ -94,7 +94,7 @@ function errorsHandler(error, corsHeaders) {
     }
 
     return createDriveErrorResponse(
-      statusCode,
+      400,
       "Google Drive API error",
       corsHeaders,
       error.message
