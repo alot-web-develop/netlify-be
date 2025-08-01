@@ -73,23 +73,9 @@ exports.handler = async (event) => {
       accessToken,
     });
 
-    // Extract session ID and create Netlify proxy URL
-    const sessionId = extractSessionId(googleUploadUrl);
-    const netlifyUploadUrl = generateNetlifyUploadUrl(
-      sessionId,
-      event.headers.origin
-    );
-
-    // Store session data for later use by upload-proxy
-    storeUploadSession(sessionId, {
-      fileName,
-      fileSize,
-      mimeType,
-    });
-
+    // Return Google Drive URL directly for upload
     return createUploadResponse({
-      uploadUrl: netlifyUploadUrl,
-      sessionId,
+      uploadUrl: googleUploadUrl, // Direct Google Drive URL
       fileName,
       fileSize,
       mimeType,
