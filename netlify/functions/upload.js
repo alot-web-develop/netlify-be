@@ -82,7 +82,6 @@ exports.handler = async (event) => {
 
     // Store session data for later use by upload-proxy
     storeUploadSession(sessionId, {
-      uploadUrl: googleUploadUrl,
       fileName,
       fileSize,
       mimeType,

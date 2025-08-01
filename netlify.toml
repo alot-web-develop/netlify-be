@@ -3,6 +3,8 @@
 
 [functions]
   node_bundler = "esbuild"
+  # Set timeout for upload functions to handle larger files (max 30s)
+  timeout = 30
 
 
 # Configurazione CORS per localhost (sviluppo)
