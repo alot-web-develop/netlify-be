@@ -97,11 +97,11 @@ exports.handler = async (event) => {
       corsHeaders,
     });
   } catch (error) {
-    return errorsHandler(error);
+    return errorsHandler(error, corsHeaders);
   }
 };
 
-const errorsHandler = (error) => {
+const errorsHandler = (error, corsHeaders) => {
   const [isValidationError, isGoogleDriveError, isAuthError] = [
     error instanceof ValidationError,
     error instanceof GoogleDriveError,
