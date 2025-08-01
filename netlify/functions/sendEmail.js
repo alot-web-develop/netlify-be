@@ -1,175 +1,130 @@
-const { google } = require("googleapis");
-const nodemailer = require("nodemailer");
+const { handleCorsAndMethod } = require("../../lib/cors-handler");
+const { gdprSheetsId, emailConfig } = require("../../lib/config");
+const {
+  EmailValidationError,
+  EmailSendError,
+  validateEmailRequest,
+  processEmailWorkflow,
+  createEmailSuccessResponse,
+  createEmailErrorResponse,
+} = require("../../lib/utils/email-utils");
+const { GoogleAPIError } = require("../../lib/utils/google-api-client");
 
-require("dotenv").config();
-
-//----DECLARATION ALLOWED ORIGINS
-
-const allowedOrigins = [
-  "http://localhost:3000",
-  "https://olamide.alotwebstudio.com",
-  "https://olamidedentaltechnology.co.uk",
-];
-
-//----DECLARATION AUTH GOOGLE
-
-const serviceAccount = {
-  type: process.env.SAK_TYPE,
-  project_id: process.env.SAK_PROJECT_ID,
-  private_key_id: process.env.SAK_PRIVATE_KEY_ID,
-  private_key: process.env.SAK_PRIVATE_KEY.replace(/@/g, "\n"),
-  client_email: process.env.SAK_CLIENT_EMAIL,
-  client_id: process.env.SAK_CLIENT_ID,
-  auth_uri: process.env.SAK_AUTH_URI,
-  token_uri: process.env.SAK_TOKEN_URI,
-  auth_provider_x509_cert_url: process.env.SAK_AUTH_PROVIDER_X509_CERT_URL,
-  client_x509_cert_url: process.env.SAK_CLIENT_X509_CERT_URL,
-  universe_domain: process.env.SAK_UNIVERSE_DOMAIN,
-};
-
-const auth = new google.auth.GoogleAuth({
-  credentials: serviceAccount,
-  scopes: [
-    "https://www.googleapis.com/auth/drive.file",
-    "https://www.googleapis.com/auth/drive.readonly",
-    "https://www.googleapis.com/auth/spreadsheets",
-  ],
-});
-
-// const drive = google.drive({ version: "v3", auth });
-const sheets = google.sheets({ version: "v4", auth });
-
-//////////////////////////////////
-/////----HANDLER
-//////////////////////////////////
-
+/**
+ * Main email handler - processes contact form submissions
+ * Sends notification email and saves consent to Google Sheets
+ * @param {Object} event - Lambda event object
+ * @returns {Promise<Object>} HTTP response
+ */
 exports.handler = async (event) => {
-  ///// ---- DECLARATION CORS ----
-  const origin = event.headers.origin;
-
-  const corsHeaders = {
-    "Access-Control-Allow-Origin": allowedOrigins.includes(origin)
-      ? origin
-      : "",
-    "Access-Control-Allow-Credentials": "true",
-    "Access-Control-Allow-Headers": "Content-Type",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-  };
-  ///// ---- AVVIO HANDLER ----
-
-  console.log("Lambda triggered");
-
-  ///// ---- CONTROLLO METODO HTTP ----
-
-  if (event.httpMethod === "OPTIONS") {
-    console.log("Handling OPTIONS preflight request");
-    return {
-      statusCode: 200,
-      headers: corsHeaders,
-      body: "OK (CORS preflight)",
-    };
+  const corsCheck = handleCorsAndMethod(event, "POST", "Content-Type");
+  if (corsCheck.statusCode) {
+    return corsCheck;
   }
-
-  if (event.httpMethod !== "POST") {
-    console.log("Invalid method:", event.httpMethod);
-    return {
-      statusCode: 405,
-      headers: corsHeaders,
-      body: "Method Not Allowed",
-    };
-  }
+  const { corsHeaders } = corsCheck;
 
   try {
-    ///// ---- ESTRAZIONE CAMPI DAL FORM ----
-
-    const body = JSON.parse(event.body);
-    const {
-      name,
-      email,
-      message,
-      phone,
-      practice,
-      consentText,
-      formId,
-      fileLinks,
-    } = body;
-
-    console.log("fields:", {
-      name,
-      email,
-      message,
-      phone,
-      practice,
-      consentText,
-      formId,
-      fileLinks,
-    });
-
-    let text = `Name: ${name}\nEmail: ${email}\nMessage: ${message}`;
-    text += `\nPhone: ${phone || "not provided"}`;
-    text += `\nPractice name: ${practice || "not provided"}`;
-    if (fileLinks.length > 0) {
-      text += "\n\nFiles:\n";
-      fileLinks.forEach(({ filename, link }) => {
-        text += `- ${filename}: ${link}\n`;
-      });
+    let requestBody;
+    try {
+      requestBody = JSON.parse(event.body);
+    } catch (parseError) {
+      return createEmailErrorResponse(
+        400,
+        "Invalid JSON in request body",
+        corsHeaders
+      );
     }
 
-    ///// ---- CONFIGURAZIONE E INVIO EMAIL ----
+    const validatedData = validateEmailRequest(requestBody);
 
-    console.log("Sending email to:", process.env.GMAIL_USER);
+    const workflowResult = await processEmailWorkflow(
+      validatedData,
+      gdprSheetsId,
+      emailConfig.recipientEmail
+    );
 
-    const transporter = nodemailer.createTransport({
-      host: process.env.GMAIL_HOST,
-      port: 587,
-      auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_PASS,
-      },
-    });
-
-    await transporter.sendMail({
-      from: process.env.GMAIL_USER,
-      to: "olamidedentaltechnology@gmail.com",
-      subject: `New message from ${name}`,
-      text,
-    });
-
-    console.log("Email sent successfully");
-
-    ///// ---- SALVATAGGIO CONSENSO SU GOOGLE SHEETS ----
-
-    console.log("Saving consent to Google Sheets");
-
-    const sheetResponse = await sheets.spreadsheets.values.append({
-      spreadsheetId: process.env.GDPR_CONSENTS_SHEET_ID,
-      range: "A1",
-      valueInputOption: "RAW",
-      requestBody: {
-        values: [[new Date().toISOString(), name, email, consentText, formId]],
-      },
-    });
-
-    console.log("Sheet response:", sheetResponse.data);
-
-    ///// ---- RISPOSTA SUCCESSO ----
-
-    return {
-      statusCode: 200,
-      headers: corsHeaders,
-      body: JSON.stringify({
-        status: "success",
-        message: "Email sent and data saved.",
-      }),
-    };
-  } catch (err) {
-    ///// ---- GESTIONE ERRORE ----
-
-    console.error("Error in handler:", err);
-    return {
-      statusCode: 500,
-      headers: corsHeaders,
-      body: JSON.stringify({ status: "error", message: err.message }),
-    };
+    if (workflowResult.errors.length === 0) {
+      console.log("Email sent and consent saved successfully");
+      return createEmailSuccessResponse(corsHeaders, {
+        emailId: workflowResult.emailResult?.messageId,
+        timestamp: new Date().toISOString(),
+      });
+    } else {
+      console.warn("Workflow completed with errors:", workflowResult.errors);
+      return workflowErrorsHandler(workflowResult);
+    }
+  } catch (error) {
+    return errorsHandler(error, corsHeaders);
   }
 };
+
+function workflowErrorsHandler(workflowResult) {
+  const emailFailed = !workflowResult.emailSent;
+  const consentFailed = !workflowResult.consentSaved;
+
+  if (emailFailed && consentFailed) {
+    console.error("Both email and consent failed:", workflowResult.errors);
+    return createEmailErrorResponse(
+      500,
+      "Failed to send email and save consent",
+      corsHeaders,
+      workflowResult.errors.map((e) => e.error).join("; ")
+    );
+  } else if (emailFailed) {
+    console.error("Email failed but consent saved:", workflowResult.errors);
+    return createEmailErrorResponse(
+      207, // Multi-status
+      "Consent saved but email sending failed",
+      corsHeaders,
+      workflowResult.errors.find((e) => e.type === "email")?.error
+    );
+  } else {
+    console.error("Email sent but consent failed:", workflowResult.errors);
+    return createEmailErrorResponse(
+      207, // Multi-status
+      "Email sent but consent saving failed",
+      corsHeaders,
+      workflowResult.errors.find((e) => e.type === "consent")?.error
+    );
+  }
+}
+
+function errorsHandler(error) {
+  // Handle specific error types
+  if (error instanceof EmailValidationError) {
+    console.warn("Email validation failed:", error.message);
+    return createEmailErrorResponse(400, error.message, corsHeaders);
+  }
+
+  if (error instanceof EmailSendError) {
+    console.error("Email sending failed:", error.message);
+    return createEmailErrorResponse(
+      500,
+      "Failed to send notification email",
+      corsHeaders,
+      error.message
+    );
+  }
+
+  if (error instanceof GoogleAPIError) {
+    console.error("Google API error:", error.message);
+    const statusCode =
+      error.statusCode >= 400 && error.statusCode < 600
+        ? error.statusCode
+        : 502;
+    return createEmailErrorResponse(
+      statusCode,
+      "Failed to save consent data",
+      corsHeaders,
+      error.message
+    );
+  }
+
+  console.error("Unexpected error in email handler:", error);
+  return createEmailErrorResponse(
+    500,
+    "An unexpected error occurred",
+    corsHeaders,
+    error.message
+  );
+}

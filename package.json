@@ -25,6 +25,7 @@
     "googleapis": "^150.0.1",
     "multiparty": "^4.2.3",
     "netlify-cli": "^22.2.2",
-    "nodemailer": "^7.0.3"
+    "nodemailer": "^7.0.3",
+    "open": "^8.4.0"
   }
 }
