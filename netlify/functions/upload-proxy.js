@@ -21,7 +21,10 @@ exports.handler = async (event) => {
     if (!sessionId) {
       return {
         statusCode: 400,
-        headers: corsHeaders,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({ error: "Missing session parameter" }),
       };
     }
@@ -31,8 +34,11 @@ exports.handler = async (event) => {
 
     if (!sessionData) {
       return {
-        statusCode: 404,
-        headers: corsHeaders,
+        statusCode: 400,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({ error: "Session not found or expired" }),
       };
     }
@@ -45,7 +51,10 @@ exports.handler = async (event) => {
     } catch (tokenError) {
       return {
         statusCode: 401,
-        headers: corsHeaders,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({ error: 'Authentication failed - token refresh error' }),
       };
     }
@@ -76,15 +85,27 @@ exports.handler = async (event) => {
               global.uploadSessions.delete(sessionId);
               resolve(result);
             } catch (parseError) {
+              global.uploadSessions.delete(sessionId);
               resolve({ success: true, rawResponse: responseData });
             }
           } else {
+            global.uploadSessions.delete(sessionId);
             reject(new Error(`Upload failed: ${proxyRes.statusCode} - ${responseData}`));
           }
         });
       });
 
-      proxyReq.on('error', reject);
+      proxyReq.on('error', (error) => {
+        global.uploadSessions.delete(sessionId);
+        reject(error);
+      });
+      
+      // Add timeout
+      proxyReq.setTimeout(300000, () => {
+        global.uploadSessions.delete(sessionId);
+        proxyReq.destroy();
+        reject(new Error('Upload timeout'));
+      });
 
       if (event.body) {
         const buffer = event.isBase64Encoded 
@@ -112,8 +133,11 @@ exports.handler = async (event) => {
 
   } catch (error) {
     return {
-      statusCode: 500,
-      headers: corsHeaders,
+      statusCode: 400,
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify({ 
         error: "Upload failed",
         details: error.message 
