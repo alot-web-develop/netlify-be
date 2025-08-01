@@ -51,14 +51,14 @@ exports.handler = async (event) => {
       });
     } else {
       console.warn("Workflow completed with errors:", workflowResult.errors);
-      return workflowErrorsHandler(workflowResult);
+      return workflowErrorsHandler(workflowResult, corsHeaders);
     }
   } catch (error) {
     return errorsHandler(error, corsHeaders);
   }
 };
 
-function workflowErrorsHandler(workflowResult) {
+function workflowErrorsHandler(workflowResult, corsHeaders) {
   const emailFailed = !workflowResult.emailSent;
   const consentFailed = !workflowResult.consentSaved;
 
@@ -89,7 +89,7 @@ function workflowErrorsHandler(workflowResult) {
   }
 }
 
-function errorsHandler(error) {
+function errorsHandler(error, corsHeaders) {
   // Handle specific error types
   if (error instanceof EmailValidationError) {
     console.warn("Email validation failed:", error.message);

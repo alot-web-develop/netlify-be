@@ -47,11 +47,11 @@ exports.handler = async (event) => {
     console.log(`Successfully retrieved ${imageList.length} images`);
     return createSimpleDriveResponse(imageList, corsHeaders);
   } catch (error) {
-    return errorsHandler(error);
+    return errorsHandler(error, corsHeaders);
   }
 };
 
-function errorsHandler(error) {
+function errorsHandler(error, corsHeaders) {
   if (error instanceof DriveValidationError) {
     console.warn("Drive request validation failed:", error.message);
     return createDriveErrorResponse(400, error.message, corsHeaders);
