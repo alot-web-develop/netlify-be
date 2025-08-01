@@ -6,8 +6,7 @@
   "packageManager": "yarn@1.22.22",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "netlify dev",
-    "get-token": "node generate-oauth-url.js"
+    "dev": "netlify dev"
   },
   "keywords": [],
   "author": "",
