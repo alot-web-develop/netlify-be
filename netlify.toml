@@ -4,9 +4,12 @@
 [functions]
   node_bundler = "esbuild"
 
-# Specific configuration for upload functions - 30 second timeout
-[functions."upload*"]
-  timeout = 30
+
+[functions."upload"]
+ binary_media_types = ["application/octet-stream"]
+
+[functions."upload-chunk"]
+  binary_media_types = ["application/octet-stream"]
 
 # CORS globale per tutte le funzioni
 [[headers]]

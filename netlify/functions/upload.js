@@ -53,6 +53,7 @@ exports.handler = async (event) => {
     let requestBody;
     try {
       requestBody = JSON.parse(event.body);
+      console.log("Parsed request body:", requestBody);
     } catch (parseError) {
       return createErrorResponse(
         400,
@@ -61,7 +62,8 @@ exports.handler = async (event) => {
       );
     }
 
-    const { fileName, fileSize, mimeType, requiresChunking } = validateUploadRequest(requestBody);
+    const { fileName, fileSize, mimeType, requiresChunking } =
+      validateUploadRequest(requestBody);
     const accessToken = await tokenManager.getAccessToken();
 
     // Create RESUMABLE upload session in Google Drive
