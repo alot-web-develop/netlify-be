@@ -7,7 +7,7 @@ const {
   createSimpleDriveResponse,
   createDriveErrorResponse,
 } = require("../../lib/utils/drive-utils");
-const { GoogleAPIError } = require("../../lib/utils/google-api-client");
+const { GoogleAPIError, createServiceAccountClient } = require("../../lib/utils/google-api-client");
 
 /**
  * Main cases images handler - fetches and returns image list from Google Drive
@@ -39,9 +39,13 @@ exports.handler = async (event) => {
       );
     }
 
+    // Create service account client for reliable authentication
+    const serviceAccountClient = createServiceAccountClient();
+    
     const imageList = await fetchImageFiles(casesFolderId, {
       ensurePublic: false,
       includeMetadata: false,
+      apiClient: serviceAccountClient,
     });
 
     console.log(`Successfully retrieved ${imageList.length} images`);
@@ -101,14 +105,14 @@ function errorsHandler(error, corsHeaders) {
     );
   }
 
-  // Handle OAuth/authentication errors
-  if (error.message?.includes("token") || error.message?.includes("auth")) {
-    console.error("Authentication error:", error.message);
+  // Handle service account authentication errors
+  if (error.message?.includes("service account") || error.message?.includes("JWT") || error.message?.includes("credentials")) {
+    console.error("Service account authentication error:", error.message);
     return createDriveErrorResponse(
       401,
-      "Authentication failed",
+      "Service account authentication failed",
       corsHeaders,
-      "Unable to authenticate with Google Drive"
+      "Unable to authenticate with Google Drive using service account"
     );
   }
 }
