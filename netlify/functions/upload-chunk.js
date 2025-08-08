@@ -17,7 +17,7 @@ exports.handler = async (event) => {
   const corsCheck = handleCorsAndMethod(
     event,
     "PUT",
-    "Content-Type, Content-Length, Content-Range"
+    "Content-Type, Content-Length, Content-Range, X-Upload-Url, X-File-Name, X-File-Size, X-Chunk-Size"
   );
   if (corsCheck.statusCode) {
     return corsCheck;
