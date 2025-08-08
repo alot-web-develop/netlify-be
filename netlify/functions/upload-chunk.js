@@ -17,8 +17,9 @@ exports.handler = async (event) => {
   const corsCheck = handleCorsAndMethod(
     event,
     "PUT",
-    "Content-Type, Content-Length, Content-Range, x-upload-url, x-file-name, x-file-size, x-chunk-size"
+    "Content-Type, Content-Length, Content-Range, x-upload-url, x-file-name, x-file-size, x-chunk-size, x-total-chunks, x-uploaded-chunks, x-uploaded-bytes"
   );
+
   if (corsCheck.statusCode) {
     return corsCheck;
   }
@@ -69,6 +70,9 @@ exports.handler = async (event) => {
     const fileSize = parseInt(event.headers["x-file-size"]);
     const mimeType = event.headers["content-type"];
     const chunkSize = parseInt(event.headers["x-chunk-size"]);
+    const totalChunks = parseInt(event.headers["x-total-chunks"]);
+    const uploadedChunks = parseInt(event.headers["x-uploaded-chunks"]);
+    const uploadedBytes = parseInt(event.headers["x-uploaded-bytes"]);
     const chunkIndex = parseInt(event.queryStringParameters?.chunk || "0");
 
     if (!sessionId) {
@@ -135,22 +139,20 @@ exports.handler = async (event) => {
     });
 
     // Update chunk progress
-    chunks.uploadedChunks++;
-    chunks.uploadedBytes += contentLength;
 
-    const isComplete = chunks.uploadedChunks >= chunks.totalChunks;
+    const isComplete = uploadedChunks + 1 >= totalChunks;
 
     const responseBody = {
       success: true,
       chunkIndex,
-      uploadedChunks: chunks.uploadedChunks,
-      totalChunks: chunks.totalChunks,
-      uploadedBytes: chunks.uploadedBytes,
+      uploadedChunks: uploadedChunks,
+      totalChunks: totalChunks,
+      uploadedBytes: uploadedBytes,
       totalBytes: fileSize,
       isComplete,
       message: isComplete
         ? "File upload completed"
-        : `Chunk ${chunkIndex + 1}/${chunks.totalChunks} uploaded`,
+        : `Chunk ${chunkIndex + 1}/${totalChunks} uploaded`,
     };
 
     // Se è l’ultimo chunk, includi i dati del file
