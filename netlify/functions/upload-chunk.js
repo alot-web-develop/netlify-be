@@ -17,7 +17,7 @@ exports.handler = async (event) => {
   const corsCheck = handleCorsAndMethod(
     event,
     "PUT",
-    "Content-Type, Content-Length, Content-Range, X-Upload-Url, X-File-Name, X-File-Size, X-Chunk-Size"
+    "Content-Type, Content-Length, Content-Range, x-upload-url, x-file-name, x-file-size, x-chunk-size"
   );
   if (corsCheck.statusCode) {
     return corsCheck;
@@ -64,11 +64,11 @@ exports.handler = async (event) => {
 
   try {
     const sessionId = event.queryStringParameters?.session;
-    const googleUploadUrl = event.headers["X-Upload-Url"];
-    const fileName = event.headers["X-File-Name"];
-    const fileSize = parseInt(event.headers["X-File-Size"]);
+    const googleUploadUrl = decodeURIComponent(event.headers["x-upload-url"]);
+    const fileName = event.headers["x-file-name"];
+    const fileSize = parseInt(event.headers["x-file-size"]);
     const mimeType = event.headers["content-type"];
-    const chunkSize = parseInt(event.headers["X-Chunk-Size"]);
+    const chunkSize = parseInt(event.headers["x-chunk-size"]);
     const chunkIndex = parseInt(event.queryStringParameters?.chunk || "0");
 
     if (!sessionId) {
