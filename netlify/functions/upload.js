@@ -91,7 +91,7 @@ exports.handler = async (event) => {
     });
 
     return createUploadResponse({
-      uploadUrl: requiresChunking ? null : netlifyUploadUrl, // Null for chunked uploads
+      uploadUrl: requiresChunking ? googleUploadUrl : netlifyUploadUrl, // Null (sostituito con googleUploadUrl) for chunked uploads
       sessionId,
       fileName,
       fileSize,
